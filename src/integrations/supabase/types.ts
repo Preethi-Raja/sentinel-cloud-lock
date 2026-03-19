@@ -14,7 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      destruct_logs: {
+        Row: {
+          created_at: string
+          file_id: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_id: string
+          id?: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_id?: string
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      encrypted_files: {
+        Row: {
+          classification: string
+          created_at: string
+          decrypt_count: number
+          encrypted_file_url: string
+          encrypted_key: string
+          expiry_datetime: string | null
+          file_size: number | null
+          file_type: string
+          id: string
+          iv: string
+          max_decrypt_limit: number
+          original_name: string
+          self_destruct_enabled: boolean
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          classification?: string
+          created_at?: string
+          decrypt_count?: number
+          encrypted_file_url: string
+          encrypted_key: string
+          expiry_datetime?: string | null
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          iv: string
+          max_decrypt_limit?: number
+          original_name: string
+          self_destruct_enabled?: boolean
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          classification?: string
+          created_at?: string
+          decrypt_count?: number
+          encrypted_file_url?: string
+          encrypted_key?: string
+          expiry_datetime?: string | null
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          iv?: string
+          max_decrypt_limit?: number
+          original_name?: string
+          self_destruct_enabled?: boolean
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      login_logs: {
+        Row: {
+          created_at: string
+          device: string | null
+          id: string
+          ip_address: string | null
+          latitude: number | null
+          longitude: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device?: string | null
+          id?: string
+          ip_address?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device?: string | null
+          id?: string
+          ip_address?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          password_hash: string
+          updated_at: string
+          user_id: string
+          username: string
+          voice_hash: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password_hash: string
+          updated_at?: string
+          user_id: string
+          username: string
+          voice_hash?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password_hash?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+          voice_hash?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
