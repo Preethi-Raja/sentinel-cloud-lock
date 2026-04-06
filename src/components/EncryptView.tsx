@@ -4,45 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { encryptFile } from '@/lib/crypto';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
-// Simple keyword-based AI classification
-function classifyFile(fileName: string, fileType: string): { classification: string; maxLimit: number } {
-  const name = fileName.toLowerCase();
-  const confidentialKeywords = ['passport', 'ssn', 'tax', 'secret', 'confidential', 'classified', 'nda', 'contract'];
-  const personalKeywords = ['resume', 'cv', 'bank', 'statement', 'id', 'license', 'aadhaar', 'pan', 'payslip', 'salary'];
-
-  if (confidentialKeywords.some(k => name.includes(k))) {
-    return { classification: 'confidential', maxLimit: 3 };
-  }
-  if (personalKeywords.some(k => name.includes(k))) {
-    return { classification: 'personal', maxLimit: 5 };
-  }
-  return { classification: 'normal', maxLimit: 10 };
-}
-
 const EncryptView = () => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [classification, setClassification] = useState<'normal' | 'personal'>('normal');
   const [selfDestruct, setSelfDestruct] = useState(false);
   const [expiryDate, setExpiryDate] = useState('');
   const [expiryTime, setExpiryTime] = useState('');
   const [loading, setLoading] = useState(false);
-  const [classification, setClassification] = useState<string | null>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
       setFile(selected);
-      const result = classifyFile(selected.name, selected.type);
-      setClassification(result.classification);
-      toast.info(`AI Classification: ${result.classification.toUpperCase()}`);
     }
+  };
+
+  const getMaxLimit = (cls: string) => {
+    return cls === 'personal' ? 5 : 10;
   };
 
   const handleEncrypt = async () => {
@@ -53,10 +40,9 @@ const EncryptView = () => {
 
     setLoading(true);
     try {
-      const { classification: cls, maxLimit } = classifyFile(file.name, file.type);
+      const maxLimit = getMaxLimit(classification);
       const { encrypted, iv, key } = await encryptFile(file);
 
-      // Upload encrypted file to storage
       const storagePath = `${user.id}/${Date.now()}_${file.name}.enc`;
       const encBlob = new Blob([encrypted]);
 
@@ -79,7 +65,7 @@ const EncryptView = () => {
         user_id: user.id,
         original_name: file.name,
         file_type: file.type || 'application/octet-stream',
-        classification: cls,
+        classification,
         encrypted_file_url: urlData.publicUrl,
         storage_path: storagePath,
         iv,
@@ -92,9 +78,9 @@ const EncryptView = () => {
 
       if (dbError) throw dbError;
 
-      toast.success(`File encrypted and uploaded! Classification: ${cls.toUpperCase()}`);
+      toast.success(`File encrypted and uploaded! Classification: ${classification.toUpperCase()}`);
       setFile(null);
-      setClassification(null);
+      setClassification('normal');
       setSelfDestruct(false);
       setExpiryDate('');
       setExpiryTime('');
@@ -104,12 +90,6 @@ const EncryptView = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const classificationColors: Record<string, string> = {
-    normal: 'text-success',
-    personal: 'text-warning',
-    confidential: 'text-destructive',
   };
 
   return (
@@ -143,11 +123,6 @@ const EncryptView = () => {
             <p className="text-muted-foreground text-xs">
               {(file.size / 1024).toFixed(1)} KB
             </p>
-            {classification && (
-              <p className={`text-sm font-mono font-bold ${classificationColors[classification] || ''}`}>
-                AI Classification: {classification.toUpperCase()}
-              </p>
-            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -156,6 +131,20 @@ const EncryptView = () => {
             <p className="text-muted-foreground text-xs">Any file type supported</p>
           </div>
         )}
+      </div>
+
+      {/* Classification selection */}
+      <div className="space-y-2">
+        <Label className="font-medium">File Classification</Label>
+        <Select value={classification} onValueChange={(v) => setClassification(v as 'normal' | 'personal')}>
+          <SelectTrigger className="h-11">
+            <SelectValue placeholder="Select classification" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="normal">Normal (Max 10 decrypts)</SelectItem>
+            <SelectItem value="personal">Personal (Max 5 decrypts, MFA required)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Self-destruct settings */}
