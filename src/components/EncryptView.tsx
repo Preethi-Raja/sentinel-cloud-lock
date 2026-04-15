@@ -10,6 +10,7 @@ import { encryptFile } from '@/lib/crypto';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { writeFileMetadata } from '@/lib/firebase';
 
 const EncryptView = () => {
   const { user } = useAuth();
@@ -77,6 +78,15 @@ const EncryptView = () => {
       });
 
       if (dbError) throw dbError;
+
+      // Sync metadata to Firebase Realtime Database
+      const firebaseId = storagePath.replace(/[./#$[\]]/g, '_');
+      await writeFileMetadata(firebaseId, {
+        file_name: file.name,
+        file_url: urlData.publicUrl,
+        decryption_count: 0,
+        expiry_time: expiryDatetime || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      });
 
       toast.success(`File encrypted and uploaded! Classification: ${classification.toUpperCase()}`);
       setFile(null);
