@@ -27,12 +27,8 @@ const DashboardPage = () => {
   useEffect(() => {
     if (!user) return;
     const fetchProfile = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('user_id', user.id)
-        .single();
-      if (data) setUsername(data.username);
+      const profile = await getUserProfile(user.id);
+      if (profile?.username) setUsername(profile.username);
     };
 
     const checkRisk = async () => {
