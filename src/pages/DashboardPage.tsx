@@ -8,9 +8,9 @@ import DecryptView from '@/components/DecryptView';
 import PreviewView from '@/components/PreviewView';
 import DeleteView from '@/components/DeleteView';
 import { supabase } from '@/integrations/supabase/client';
+import { getUserProfile } from '@/lib/firebase';
 
 type View = 'encrypt' | 'decrypt' | 'preview' | 'delete';
-
 const DashboardPage = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
