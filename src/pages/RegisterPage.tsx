@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  auth,
+  createUserWithEmailAndPassword,
+  upsertUserProfile,
+} from '@/lib/firebase';
 import { hashPassword, hashVoice } from '@/lib/crypto';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import { toast } from 'sonner';
@@ -13,6 +17,7 @@ import { toast } from 'sonner';
 const RegisterPage = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [voiceText, setVoiceText] = useState('');
@@ -20,7 +25,7 @@ const RegisterPage = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) {
+    if (!username || !email || !password) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -31,27 +36,17 @@ const RegisterPage = () => {
 
     setLoading(true);
     try {
-      const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@vault.local`;
+      const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
+
       const passHash = await hashPassword(password);
       const voiceHash = voiceText ? await hashVoice(voiceText) : null;
 
-      const { data, error } = await supabase.auth.signUp({
+      await upsertUserProfile(fbUser.uid, {
+        username,
         email,
-        password,
+        password_hash: passHash,
+        voice_hash: voiceHash,
       });
-
-      if (error) throw error;
-
-      if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          user_id: data.user.id,
-          username,
-          password_hash: passHash,
-          voice_hash: voiceHash,
-        });
-
-        if (profileError) throw profileError;
-      }
 
       toast.success('Registration successful! Redirecting...');
       navigate('/dashboard');
@@ -103,6 +98,18 @@ const RegisterPage = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username"
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter email"
                 className="h-11"
               />
             </div>
