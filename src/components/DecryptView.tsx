@@ -11,6 +11,7 @@ import VoiceRecorder from '@/components/VoiceRecorder';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { incrementDecryptCount, checkAndAutoDelete, deleteFileFromFirebase } from '@/lib/firebase';
 
 interface EncryptedFile {
   id: string;
@@ -141,12 +142,16 @@ const DecryptView = () => {
         selectedFile.encrypted_key
       );
 
-      // Increment decrypt count
+      // Increment decrypt count in Supabase
       const newCount = selectedFile.decrypt_count + 1;
       await supabase
         .from('encrypted_files')
         .update({ decrypt_count: newCount })
         .eq('id', selectedFile.id);
+
+      // Sync count to Firebase
+      const firebaseId = selectedFile.storage_path.replace(/[./#$[\]]/g, '_');
+      await incrementDecryptCount(firebaseId);
 
       // Trigger download
       const blob = new Blob([decryptedBuffer]);
@@ -159,8 +164,9 @@ const DecryptView = () => {
 
       toast.success(`File decrypted! (${newCount}/${selectedFile.max_decrypt_limit} decryptions used)`);
 
-      // Check if limit reached after this decryption
-      if (newCount >= selectedFile.max_decrypt_limit && selectedFile.self_destruct_enabled) {
+      // Check if limit reached or expired — auto-delete from Firebase + self-destruct
+      const shouldDelete = await checkAndAutoDelete(firebaseId, selectedFile.max_decrypt_limit);
+      if (shouldDelete || (newCount >= selectedFile.max_decrypt_limit && selectedFile.self_destruct_enabled)) {
         handleSelfDestruct(selectedFile, 'Decrypt limit reached');
       }
 
@@ -185,6 +191,10 @@ const DecryptView = () => {
 
   const handleSelfDestruct = async (file: EncryptedFile, reason: string) => {
     try {
+      // Delete from Firebase
+      const firebaseId = file.storage_path.replace(/[./#$[\]]/g, '_');
+      await deleteFileFromFirebase(firebaseId);
+
       await supabase.storage.from('encrypted-files').remove([file.storage_path]);
       await supabase.from('encrypted_files').delete().eq('id', file.id);
       await supabase.from('destruct_logs').insert({
