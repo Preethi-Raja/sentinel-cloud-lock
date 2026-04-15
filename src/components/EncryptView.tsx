@@ -53,21 +53,32 @@ const EncryptView = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('encrypted-files')
-        .getPublicUrl(storagePath);
-
       let expiryDatetime = null;
       if (selfDestruct && expiryDate && expiryTime) {
         expiryDatetime = new Date(`${expiryDate}T${expiryTime}`).toISOString();
       }
+
+      // Generate a signed URL valid for the file's lifetime (default 30 days, or until expiry)
+      const signedUrlExpiry = expiryDatetime
+        ? Math.max(60, Math.floor((new Date(expiryDatetime).getTime() - Date.now()) / 1000))
+        : 30 * 24 * 60 * 60; // 30 days in seconds
+
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('encrypted-files')
+        .createSignedUrl(storagePath, signedUrlExpiry);
+
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error('Failed to generate signed download URL');
+      }
+
+      const signedUrl = signedUrlData.signedUrl;
 
       const { error: dbError } = await supabase.from('encrypted_files').insert({
         user_id: user.id,
         original_name: file.name,
         file_type: file.type || 'application/octet-stream',
         classification,
-        encrypted_file_url: urlData.publicUrl,
+        encrypted_file_url: signedUrl,
         storage_path: storagePath,
         iv,
         encrypted_key: key,
@@ -83,7 +94,7 @@ const EncryptView = () => {
       const firebaseId = storagePath.replace(/[./#$[\]]/g, '_');
       await writeFileMetadata(firebaseId, {
         file_name: file.name,
-        file_url: urlData.publicUrl,
+        file_url: signedUrl,
         decryption_count: 0,
         expiry_time: expiryDatetime || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
